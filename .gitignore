@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.pytest_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv
+env/
+
+# Telemetry data (raw, grid, tracks, SQLite index, legacy captures)
+data/
+
+# Frontend
+web/node_modules/
+web/dist/
+
+# First-generation scripts and dashboards, kept locally for reference
+legacy/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# spécifique au projet
+claude.md
+data/
+docs/
+legacy/

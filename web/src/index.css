@@ -1,0 +1,74 @@
+@layer theme, base, mantine, components, utilities;
+
+@import "tailwindcss";
+@import "@mantine/core/styles.layer.css";
+
+@theme {
+  --color-ink-950: #070b14;
+  --color-ink-900: #0b1120;
+  --color-ink-850: #0e1526;
+  --color-ink-800: #131c33;
+  --color-ink-700: #1a2644;
+  --color-line: #1b2641;
+  --color-line-strong: #2b3b5e;
+  --color-bone: #eceef3;
+  --color-bone-dim: #a9b2c3;
+  --color-mute: #7a859b;
+  --color-signal: #f2c230;
+  --color-ref: #3f90dd;
+  --color-cmp: #cf7a12;
+  --color-gain: #1fa284;
+  --color-loss: #e5534b;
+  --color-best: #a66cf0;
+
+  --font-sans: "Barlow", system-ui, sans-serif;
+  --font-display: "Barlow Condensed", "Barlow", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body {
+    background: var(--color-ink-950);
+    color: var(--color-bone);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-signal) 35%, transparent);
+  }
+}
+
+@layer components {
+  .label {
+    font-family: var(--font-display);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-mute);
+  }
+
+  .panel {
+    background: var(--color-ink-900);
+    border: 1px solid var(--color-line);
+    border-radius: 10px;
+  }
+
+  .num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  .grain {
+    background-image:
+      radial-gradient(circle at 1px 1px, rgb(255 255 255 / 0.035) 1px, transparent 0);
+    background-size: 3px 3px;
+  }
+}

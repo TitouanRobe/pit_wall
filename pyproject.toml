@@ -1,0 +1,32 @@
+[project]
+name = "lmu-telemetry"
+version = "0.3.0"
+description = "Le Mans Ultimate telemetry recorder and lap analysis (Parquet, DuckDB, SQLite)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pyarrow>=17.0",
+    "numpy>=2.0",
+    "duckdb>=1.1",
+    "fastapi>=0.115",
+    "uvicorn>=0.32",
+]
+
+[project.scripts]
+lmu = "lmu_agent.cli:main"
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=8.3",
+]
+
+[build-system]
+requires = ["uv_build>=0.8,<0.20"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "lmu_agent"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
