@@ -35,6 +35,7 @@ def simulate(laps: int, paces: list[float], track: bytes = b"Test Ring") -> tupl
     info.mSession = 1
     veh.mVehicleName = b"Test Car"
     veh.mVehicleClass = b"GT3"
+    veh.mDriverName = b"Test Driver"
     tel.mVehicleModel = b"Test Model"
     tel.mFuel = 80.0
 
@@ -193,3 +194,53 @@ def test_official_lap_time_goes_to_the_lap_it_belongs_to():
     assert len(session.laps) == len(true_times)
     for record in session.laps:
         assert record.lap_time_ms == pytest.approx(true_times[record.lap_number] * 1000, abs=2)
+
+
+def test_driver_name_is_recorded_and_listed(recorded):
+    session_id, _ = recorded
+    listed = {s["id"]: s for s in TestClient(app).get("/api/sessions").json()}
+    assert listed[session_id]["driver"] == "Test Driver"
+    assert listed[session_id]["hidden"] is False
+
+
+def test_hidden_session_leaves_progression_and_lap_library_but_stays_listed(two_weeks):
+    client = TestClient(app)
+    ids = [s["id"] for s in client.get("/api/sessions").json() if s["track"] == "progress_ring"]
+    newest = max(ids)
+    assert client.patch(f"/api/sessions/{newest}", json={"hidden": True}).status_code == 204
+    try:
+        progression = client.get("/api/tracks/progress_ring/progression").json()
+        assert [s["session_id"] for s in progression["sessions"]] == [min(ids)]
+        assert {lap["session_id"] for lap in client.get("/api/tracks/progress_ring/laps").json()} == {min(ids)}
+        listed = {s["id"]: s for s in client.get("/api/sessions").json()}
+        assert listed[newest]["hidden"] is True
+    finally:
+        client.patch(f"/api/sessions/{newest}", json={"hidden": False})
+    assert len(client.get("/api/tracks/progress_ring/progression").json()["sessions"]) == 2
+
+
+def test_hiding_an_unknown_session_is_a_404():
+    assert TestClient(app).patch("/api/sessions/999999", json={"hidden": True}).status_code == 404
+
+
+def test_schema_migration_adds_columns_to_an_existing_database(tmp_path):
+    import sqlite3
+
+    path = tmp_path / "old.sqlite"
+    conn = sqlite3.connect(path)
+    conn.executescript(
+        """CREATE TABLE track (id INTEGER PRIMARY KEY, slug TEXT, name TEXT, layout TEXT, length_m REAL, ref_lap_id INTEGER);
+           CREATE TABLE car (id INTEGER PRIMARY KEY, slug TEXT, name TEXT, class TEXT);
+           CREATE TABLE session (id INTEGER PRIMARY KEY, started_at TEXT NOT NULL, track_id INTEGER NOT NULL,
+               car_id INTEGER NOT NULL, session_type TEXT, air_temp REAL, track_temp REAL, wetness REAL,
+               game_version TEXT, raw_path TEXT NOT NULL, grid_path TEXT, sample_hz REAL NOT NULL DEFAULT 50,
+               source TEXT NOT NULL DEFAULT 'live', quality_json TEXT, notes TEXT);
+           INSERT INTO session (started_at, track_id, car_id, raw_path) VALUES ('2026-01-01T00:00:00', 1, 1, 'x');"""
+    )
+    conn.commit()
+    conn.close()
+    db.init_db(path)
+    with db.connection(path) as conn:
+        row = conn.execute("SELECT driver, hidden FROM session").fetchone()
+        assert row["driver"] is None and row["hidden"] == 0
+        conn.execute("SELECT driver, hidden FROM v_lap").fetchall()

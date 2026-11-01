@@ -3,7 +3,8 @@ import { memo, useMemo, useState, type KeyboardEvent, type PointerEvent } from "
 import type { Corner } from "../api";
 import { nearestIndex, useStore, type Store } from "../lib/cursor";
 import { useElementWidth } from "../lib/useElementWidth";
-import { nivoTheme, palette } from "../theme";
+import { useNivoTheme, usePalette } from "../lib/mode";
+import type { Palette } from "../theme";
 
 export type ChartSeries = { id: string; label: string; color: string; values: number[] };
 type NivoSeries = { id: string; color: string; data: { x: number; y: number }[] };
@@ -18,7 +19,7 @@ function sliceRange(s: number[], [d0, d1]: [number, number]): [number, number] {
   return [Math.max(0, nearestIndex(s, d0) - 1), Math.min(s.length - 1, nearestIndex(s, d1) + 1)];
 }
 
-function CornerBands({ corners, showLabels }: { corners: Corner[]; showLabels: boolean }) {
+function CornerBands({ corners, showLabels, palette }: { corners: Corner[]; showLabels: boolean; palette: Palette }) {
   return function Bands({ xScale, innerHeight, innerWidth }: LayerProps) {
     return (
       <g>
@@ -29,7 +30,7 @@ function CornerBands({ corners, showLabels }: { corners: Corner[]; showLabels: b
           const apex = xScale(c.s_apex);
           return (
             <g key={c.index}>
-              {c.index % 2 === 1 && <rect x={x0} y={0} width={x1 - x0} height={innerHeight} fill="#ffffff" opacity={0.022} />}
+              {c.index % 2 === 1 && <rect x={x0} y={0} width={x1 - x0} height={innerHeight} fill={palette.bone} opacity={0.035} />}
               {showLabels && apex > 8 && apex < innerWidth - 8 && (
                 <text x={apex} y={11} textAnchor="middle" fontSize={10} fontFamily="Barlow Condensed" fontWeight={700} fill={palette.mute}>
                   {c.name}
@@ -44,6 +45,7 @@ function CornerBands({ corners, showLabels }: { corners: Corner[]; showLabels: b
 }
 
 function DeltaArea({ series, yScale, innerWidth, innerHeight }: LayerProps) {
+  const palette = usePalette();
   const points = series[0]?.data.map((d) => d.position) ?? [];
   if (points.length < 2) return null;
   const zero = Math.min(innerHeight, Math.max(0, yScale(0)));
@@ -90,7 +92,12 @@ const Plot = memo(function Plot({
   delta: boolean;
   format: (v: number) => string;
 }) {
-  const bands = useMemo(() => CornerBands({ corners, showLabels: showCornerLabels }), [corners, showCornerLabels]);
+  const palette = usePalette();
+  const nivoTheme = useNivoTheme();
+  const bands = useMemo(
+    () => CornerBands({ corners, showLabels: showCornerLabels, palette }),
+    [corners, showCornerLabels, palette],
+  );
   const layers: LineSvgLayer<NivoSeries>[] = delta
     ? ["grid", bands, DeltaArea, "lines", "axes"]
     : ["grid", bands, "lines", "axes"];

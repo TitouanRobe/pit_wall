@@ -30,7 +30,6 @@ legacy/
 Thumbs.db
 
 # spécifique au projet
-claude.md
 data/
 docs/
 legacy/

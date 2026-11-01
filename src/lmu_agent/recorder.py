@@ -79,6 +79,7 @@ class LiveSession:
             track_length_m=float(info.mLapDist),
             car_name=model or _text(veh.mVehicleName),
             car_class=_text(veh.mVehicleClass) or None,
+            driver=_text(veh.mDriverName) or _text(info.mPlayerName) or None,
             session_type=SESSION_TYPES.get(int(info.mSession), "unknown"),
             air_temp=float(info.mAmbientTemp),
             track_temp=float(info.mTrackTemp),

@@ -101,7 +101,7 @@ def _serialize_trace(trace: dict[str, np.ndarray]) -> dict[str, list]:
 def lap_summary(row: sqlite3.Row) -> dict:
     keys = ["id", "session_id", "lap_number", "lap_time_ms", "s1_ms", "s2_ms", "s3_ms", "valid", "is_out_lap",
             "is_in_lap", "in_grid", "fuel_used", "max_speed", "track", "track_name", "car", "car_name", "class",
-            "started_at", "session_type"]
+            "started_at", "session_type", "driver"]
     return {k: row[k] for k in keys}
 
 
@@ -228,7 +228,7 @@ def track_progression(conn: sqlite3.Connection, slug: str, car: str | None = Non
     cars = conn.execute(
         """SELECT c.slug, c.name, COUNT(*) AS sessions
            FROM session s JOIN car c ON c.id = s.car_id
-           WHERE s.track_id = ? AND s.grid_path IS NOT NULL GROUP BY c.id ORDER BY sessions DESC, c.name""",
+           WHERE s.track_id = ? AND s.hidden = 0 AND s.grid_path IS NOT NULL GROUP BY c.id ORDER BY sessions DESC, c.name""",
         (track["id"],),
     ).fetchall()
     if not cars:
@@ -238,7 +238,7 @@ def track_progression(conn: sqlite3.Connection, slug: str, car: str | None = Non
     sessions = conn.execute(
         """SELECT s.id, s.started_at, s.session_type, s.grid_path, s.track_temp, c.name AS car_name
            FROM session s JOIN car c ON c.id = s.car_id
-           WHERE s.track_id = ? AND c.slug = ? AND s.grid_path IS NOT NULL ORDER BY s.started_at""",
+           WHERE s.track_id = ? AND c.slug = ? AND s.hidden = 0 AND s.grid_path IS NOT NULL ORDER BY s.started_at""",
         (track["id"], selected),
     ).fetchall()
 

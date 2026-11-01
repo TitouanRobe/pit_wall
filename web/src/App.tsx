@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { lazy, Suspense } from "react";
 import { NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { SectorMark } from "./components/SectorMark";
+import { ThemeToggle } from "./components/ThemeToggle";
 import { LoadingBlock } from "./components/ui";
 import SessionsPage from "./pages/SessionsPage";
 
@@ -50,6 +51,7 @@ export default function App() {
             <NavItem to="/compare">Compare</NavItem>
             <NavItem to="/progress">Progress</NavItem>
           </nav>
+          <ThemeToggle />
         </div>
       </header>
       <AnimatePresence mode="wait">

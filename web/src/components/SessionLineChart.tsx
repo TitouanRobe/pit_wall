@@ -1,6 +1,6 @@
 import { ResponsiveLine } from "@nivo/line";
 import { useMemo } from "react";
-import { nivoTheme, palette } from "../theme";
+import { useNivoTheme, usePalette } from "../lib/mode";
 
 export type SessionPoint = { id: string; tick: string; title: string };
 export type SessionSeries = { id: string; label: string; color: string; values: number[] };
@@ -23,6 +23,8 @@ export function SessionLineChart({
   axisFormat: (v: number) => string;
   target?: { value: number; label: string };
 }) {
+  const palette = usePalette();
+  const nivoTheme = useNivoTheme();
   const { data, ticks, min, max, byId, labels } = useMemo(() => {
     const values = series.flatMap((s) => s.values).concat(target ? [target.value] : []);
     const pad = Math.max((Math.max(...values) - Math.min(...values)) * 0.18, 1e-6);

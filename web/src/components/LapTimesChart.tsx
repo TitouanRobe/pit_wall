@@ -1,12 +1,13 @@
 import { ResponsiveLine, type LineCustomSvgLayerProps } from "@nivo/line";
 import type { Lap } from "../api";
 import { lapTime } from "../lib/format";
-import { nivoTheme, palette } from "../theme";
+import { useNivoTheme, usePalette } from "../lib/mode";
 
 type Datum = { x: number; y: number; valid: boolean; best: boolean };
 type Serie = { id: string; data: Datum[] };
 
 function Markers({ series, xScale, yScale }: LineCustomSvgLayerProps<Serie>) {
+  const palette = usePalette();
   return (
     <g>
       {series[0].data.map(({ data }) => {
@@ -31,14 +32,14 @@ function Markers({ series, xScale, yScale }: LineCustomSvgLayerProps<Serie>) {
   );
 }
 
-function IdealLine({ idealMs }: { idealMs: number | null }) {
+function IdealLine({ idealMs, color }: { idealMs: number | null; color: string }) {
   return function Ideal({ yScale, innerWidth }: LineCustomSvgLayerProps<Serie>) {
     if (idealMs == null) return null;
     const y = yScale(idealMs / 1000);
     return (
       <g>
-        <line x1={0} x2={innerWidth} y1={y} y2={y} stroke={palette.signal} strokeOpacity={0.6} strokeDasharray="2 4" />
-        <text x={innerWidth} y={y + 13} textAnchor="end" fontSize={10} fontFamily="JetBrains Mono" fill={palette.signal}>
+        <line x1={0} x2={innerWidth} y1={y} y2={y} stroke={color} strokeOpacity={0.6} strokeDasharray="2 4" />
+        <text x={innerWidth} y={y + 13} textAnchor="end" fontSize={10} fontFamily="JetBrains Mono" fill={color}>
           ideal {lapTime(idealMs)}
         </text>
       </g>
@@ -47,6 +48,8 @@ function IdealLine({ idealMs }: { idealMs: number | null }) {
 }
 
 export function LapTimesChart({ laps, bestMs, idealMs }: { laps: Lap[]; bestMs: number | null; idealMs: number | null }) {
+  const palette = usePalette();
+  const nivoTheme = useNivoTheme();
   const data: Datum[] = laps
     .filter((l) => l.lap_time_ms && !l.is_out_lap && !l.is_in_lap)
     .map((l) => ({ x: l.lap_number, y: l.lap_time_ms! / 1000, valid: !!l.valid, best: l.lap_time_ms === bestMs }));
@@ -78,7 +81,7 @@ export function LapTimesChart({ laps, bestMs, idealMs }: { laps: Lap[]; bestMs: 
         legendOffset: 28,
         legendPosition: "end",
       }}
-      layers={["grid", "axes", IdealLine({ idealMs }), "lines", Markers, "mesh"]}
+      layers={["grid", "axes", IdealLine({ idealMs, color: palette.signal }), "lines", Markers, "mesh"]}
       useMesh
       animate={false}
       tooltip={({ point }) => (

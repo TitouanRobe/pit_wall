@@ -1,7 +1,8 @@
 import { useMemo, useRef, type PointerEvent } from "react";
 import type { Corner, Trace, TrackMap as TrackMapData } from "../api";
 import { nearestIndex, useStore, type Store } from "../lib/cursor";
-import { palette } from "../theme";
+import { usePalette } from "../lib/mode";
+import type { Palette } from "../theme";
 
 type Geometry = { points: [number, number][]; viewBox: string; scale: number };
 
@@ -24,6 +25,7 @@ function polyline(points: [number, number][]): string {
 }
 
 export function TrackOutline({ map, className }: { map: TrackMapData; className?: string }) {
+  const palette = usePalette();
   const geo = useMemo(() => geometry(map.x, map.z, 0.08), [map]);
   return (
     <svg viewBox={geo.viewBox} className={className} aria-hidden>
@@ -39,7 +41,7 @@ const RATE_THRESHOLD = 0.0004;
 
 type Run = { color: string; points: [number, number][] };
 
-function deltaRuns(geo: Geometry, s: number[], delta: number[]): Run[] {
+function deltaRuns(geo: Geometry, s: number[], delta: number[], palette: Palette): Run[] {
   const step = s[1] - s[0];
   const half = Math.max(1, Math.round(RATE_WINDOW_M / step / 2));
   const colorAt = (i: number) => {
@@ -61,6 +63,7 @@ function deltaRuns(geo: Geometry, s: number[], delta: number[]): Run[] {
 }
 
 function CursorDots({ cursor, geo, refTrace, cmpTrace }: { cursor: Store<number | null>; geo: Geometry; refTrace: Trace; cmpTrace: Trace }) {
+  const palette = usePalette();
   const s = useStore(cursor);
   if (s == null) return null;
   const dot = (trace: Trace, color: string) => {
@@ -94,8 +97,9 @@ export function DeltaMap({
   domain: [number, number];
   onCornerClick: (corner: Corner) => void;
 }) {
+  const palette = usePalette();
   const geo = useMemo(() => geometry(map.x, map.z), [map]);
-  const runs = useMemo(() => deltaRuns(geo, map.s, delta), [geo, map.s, delta]);
+  const runs = useMemo(() => deltaRuns(geo, map.s, delta, palette), [geo, map.s, delta, palette]);
   const svgRef = useRef<SVGSVGElement>(null);
   const full = domain[0] <= map.s[0] && domain[1] >= map.s[map.s.length - 1];
   const zoomed = useMemo(

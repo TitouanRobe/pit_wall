@@ -7,7 +7,7 @@ from pathlib import Path
 
 from .config import SQLITE_PATH
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS corner (
@@ -52,7 +52,9 @@ CREATE TABLE IF NOT EXISTS session (
     sample_hz     REAL NOT NULL DEFAULT 50,
     source        TEXT NOT NULL DEFAULT 'live',
     quality_json  TEXT,
-    notes         TEXT
+    notes         TEXT,
+    driver        TEXT,
+    hidden        INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS lap (
@@ -74,9 +76,12 @@ CREATE TABLE IF NOT EXISTS lap (
 
 CREATE INDEX IF NOT EXISTS idx_lap_time ON lap(lap_time_ms) WHERE valid = 1;
 
-CREATE VIEW IF NOT EXISTS v_lap AS
+DROP VIEW IF EXISTS v_lap;
+
+CREATE VIEW v_lap AS
 SELECT l.*, t.slug AS track, t.name AS track_name, c.slug AS car, c.name AS car_name, c.class,
-       s.started_at, s.session_type, s.air_temp, s.track_temp, s.wetness, s.raw_path, s.grid_path
+       s.started_at, s.session_type, s.air_temp, s.track_temp, s.wetness, s.raw_path, s.grid_path,
+       s.driver, s.hidden
 FROM lap l
 JOIN session s ON s.id = l.session_id
 JOIN track   t ON t.id = s.track_id
@@ -91,10 +96,26 @@ def _open(path: Path) -> sqlite3.Connection:
     return conn
 
 
+SESSION_COLUMNS_ADDED_IN_V3 = {
+    "driver": "TEXT",
+    "hidden": "INTEGER NOT NULL DEFAULT 0",
+}
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    existing = {row["name"] for row in conn.execute("PRAGMA table_info(session)")}
+    if not existing:
+        return
+    for name, definition in SESSION_COLUMNS_ADDED_IN_V3.items():
+        if name not in existing:
+            conn.execute(f"ALTER TABLE session ADD COLUMN {name} {definition}")
+
+
 def init_db(db_path: Path = SQLITE_PATH) -> None:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = _open(db_path)
     try:
+        _migrate(conn)
         conn.executescript(_SCHEMA_SQL)
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.commit()

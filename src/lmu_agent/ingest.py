@@ -32,6 +32,7 @@ class SessionMeta:
     track_length_m: float
     car_name: str
     car_class: str | None = None
+    driver: str | None = None
     session_type: str | None = None
     air_temp: float | None = None
     track_temp: float | None = None
@@ -125,6 +126,7 @@ def persist_session(meta: SessionMeta, raw: pa.Table, laps: list[LapRecord]) -> 
             "source": meta.source,
             "quality_json": json.dumps(report.to_dict()),
             "notes": meta.notes,
+            "driver": meta.driver,
         })
         for lap in sorted(by_number.values(), key=lambda l: l.lap_number):
             db.insert_row(conn, "lap", {
@@ -155,7 +157,7 @@ def refresh_track_reference(conn: sqlite3.Connection, track_id: int) -> None:
     best = conn.execute(
         """SELECT l.id, l.lap_number, s.grid_path, t.slug, t.ref_lap_id
            FROM lap l JOIN session s ON s.id = l.session_id JOIN track t ON t.id = s.track_id
-           WHERE s.track_id = ? AND l.in_grid = 1 AND l.valid = 1 AND l.is_out_lap = 0 AND l.is_in_lap = 0
+           WHERE s.track_id = ? AND s.hidden = 0 AND l.in_grid = 1 AND l.valid = 1 AND l.is_out_lap = 0 AND l.is_in_lap = 0
            ORDER BY l.lap_time_ms LIMIT 1""",
         (track_id,),
     ).fetchone()
@@ -191,6 +193,17 @@ def rebuild_derived(redetect_corners: bool = False) -> int:
         for (track_id,) in conn.execute("SELECT id FROM track").fetchall():
             refresh_track_reference(conn, track_id)
     return len(sessions)
+
+
+def set_hidden(session_id: int, hidden: bool) -> bool:
+    """Hidden sessions stay on disk but leave the track reference, progression and lap library."""
+    with db.connection() as conn:
+        row = conn.execute("SELECT track_id FROM session WHERE id = ?", (session_id,)).fetchone()
+        if row is None:
+            return False
+        conn.execute("UPDATE session SET hidden = ? WHERE id = ?", (int(hidden), session_id))
+        refresh_track_reference(conn, row["track_id"])
+    return True
 
 
 def delete_session(session_id: int) -> None:

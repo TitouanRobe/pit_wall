@@ -10,7 +10,7 @@ import { Chip, ErrorBlock, LoadingBlock, PageTitle, SectionTitle, SeriesSwatch, 
 import { dateTime, lapTime, sessionType, shortDate, shortTime, signed } from "../lib/format";
 import { ramp, rampLegend } from "../lib/ramp";
 import { useApi } from "../lib/useApi";
-import { nivoTheme, palette } from "../theme";
+import { useHeat, useNivoTheme, usePalette } from "../lib/mode";
 
 const HEATMAP_ROW_PX = 34;
 const HEATMAP_COLUMN_PX = 64;
@@ -36,6 +36,9 @@ function Hint({ children }: { children: string }) {
 }
 
 function ProgressView({ slug, car }: { slug: string; car: string | null }) {
+  const palette = usePalette();
+  const nivoTheme = useNivoTheme();
+  const heatScale = useHeat();
   const [, setParams] = useSearchParams();
   const navigate = useNavigate();
   const { data, error, loading } = useApi<Progression>(`/tracks/${slug}/progression${car ? `?car=${encodeURIComponent(car)}` : ""}`);
@@ -158,14 +161,14 @@ function ProgressView({ slug, car }: { slug: string; car: string | null }) {
             data={heat}
             margin={{ top: 40, right: 8, bottom: 4, left: 48 }}
             theme={nivoTheme}
-            colors={(cell) => ramp((cell.value ?? 0) / maxGap)}
+            colors={(cell) => ramp(heatScale.stops, (cell.value ?? 0) / maxGap)}
             emptyColor={palette.ink800}
             borderRadius={3}
             borderWidth={2}
             borderColor={palette.ink900}
             enableLabels={sessions.length <= HEATMAP_LABELS_MAX_SESSIONS}
             valueFormat={(v) => (v < NEGLIGIBLE_GAP_S ? "best" : v.toFixed(2))}
-            labelTextColor={(cell) => ((cell.value ?? 0) / maxGap > 0.55 ? palette.ink950 : palette.bone)}
+            labelTextColor={(cell) => ((cell.value ?? 0) / maxGap > 0.55 ? heatScale.labelOnHot : palette.bone)}
             axisTop={{ tickSize: 0, tickPadding: 8, format: (v) => points.find((p) => p.id === String(v))?.tick ?? "" }}
             axisLeft={{ tickSize: 0, tickPadding: 10 }}
             animate={false}
@@ -191,7 +194,7 @@ function ProgressView({ slug, car }: { slug: string; car: string | null }) {
       </div>
       <div className="mb-8 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-bone-dim">
         <span className="num whitespace-nowrap">0 s</span>
-        <span className="h-[8px] w-40 rounded-full" style={{ background: rampLegend() }} aria-hidden />
+        <span className="h-[8px] w-40 rounded-full" style={{ background: rampLegend(heatScale.stops) }} aria-hidden />
         <span className="num whitespace-nowrap">+{maxGap.toFixed(2)} s</span>
         <span className="text-mute">median time lost against your best ever in that corner</span>
       </div>

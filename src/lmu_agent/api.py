@@ -8,10 +8,11 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from . import __version__, analysis, db
 from .config import WEB_DIST
-from .ingest import delete_session
+from .ingest import delete_session, set_hidden
 
 app = FastAPI(title="LMU Telemetry", version=__version__)
 
@@ -25,7 +26,7 @@ Conn = Annotated[sqlite3.Connection, Depends(get_conn)]
 
 
 SESSION_LIST_SQL = """
-SELECT s.id, s.started_at, s.session_type, s.source, s.track_temp, s.air_temp, s.wetness, s.quality_json,
+SELECT s.id, s.started_at, s.session_type, s.source, s.driver, s.hidden, s.track_temp, s.air_temp, s.wetness, s.quality_json,
        t.slug AS track, t.name AS track_name, t.length_m, c.slug AS car, c.name AS car_name, c.class,
        COUNT(l.id) AS laps,
        MIN(CASE WHEN l.valid = 1 AND l.in_grid = 1 AND l.is_out_lap = 0 AND l.is_in_lap = 0 THEN l.lap_time_ms END) AS best_ms
@@ -45,6 +46,7 @@ def list_sessions(conn: Conn) -> list[dict]:
         item = dict(row)
         quality = json.loads(item.pop("quality_json") or "null")
         item["warnings"] = len(quality["warnings"]) if quality else 0
+        item["hidden"] = bool(item["hidden"])
         rows.append(item)
     return rows
 
@@ -55,6 +57,16 @@ def get_session(session_id: int, conn: Conn) -> dict:
         return analysis.session_detail(conn, session_id)
     except analysis.NotFound as exc:
         raise HTTPException(404, str(exc)) from exc
+
+
+class SessionPatch(BaseModel):
+    hidden: bool
+
+
+@app.patch("/api/sessions/{session_id}", status_code=204)
+def patch_session(session_id: int, patch: SessionPatch) -> None:
+    if not set_hidden(session_id, patch.hidden):
+        raise HTTPException(404, f"Session {session_id} not found.")
 
 
 @app.delete("/api/sessions/{session_id}", status_code=204)
@@ -81,7 +93,7 @@ def track_progression(slug: str, conn: Conn, car: str | None = None) -> dict:
 @app.get("/api/tracks/{slug}/laps")
 def track_laps(slug: str, conn: Conn) -> list[dict]:
     rows = conn.execute(
-        "SELECT * FROM v_lap WHERE track = ? AND in_grid = 1 ORDER BY valid DESC, lap_time_ms", (slug,)
+        "SELECT * FROM v_lap WHERE track = ? AND hidden = 0 AND in_grid = 1 ORDER BY valid DESC, lap_time_ms", (slug,)
     ).fetchall()
     return [analysis.lap_summary(r) for r in rows]
 

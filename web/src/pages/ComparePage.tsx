@@ -10,7 +10,7 @@ import { ErrorBlock, LoadingBlock, PageTitle, SectionTitle, SeriesSwatch } from 
 import { createStore } from "../lib/cursor";
 import { distance, lapTime, shortDate, signed } from "../lib/format";
 import { useApi } from "../lib/useApi";
-import { palette } from "../theme";
+import { usePalette } from "../lib/mode";
 
 const CORNER_ZOOM_PAD_M = 60;
 
@@ -65,6 +65,7 @@ function LapSelect({ value, laps, color, role, onChange }: { value: number; laps
 }
 
 function DeltaBadge({ delta }: { delta: number }) {
+  const palette = usePalette();
   const slower = delta > 0;
   return (
     <div className="panel flex min-w-[210px] flex-col justify-center px-5 py-3">
@@ -78,6 +79,7 @@ function DeltaBadge({ delta }: { delta: number }) {
 }
 
 function Insights({ corners, onZoom }: { corners: CornerComparison[]; onZoom: (c: Corner) => void }) {
+  const palette = usePalette();
   const top = [...corners].sort((a, b) => Math.abs(b.delta_s) - Math.abs(a.delta_s)).slice(0, 3);
   if (!top.length) return null;
   return (
@@ -106,6 +108,7 @@ function Insights({ corners, onZoom }: { corners: CornerComparison[]; onZoom: (c
 }
 
 function DeltaCell({ value, max }: { value: number; max: number }) {
+  const palette = usePalette();
   const width = Math.min(1, Math.abs(value) / max) * 50;
   const color = value > 0 ? palette.loss : palette.gain;
   return (
@@ -163,6 +166,7 @@ function CornerTable({ corners, onZoom }: { corners: CornerComparison[]; onZoom:
 }
 
 function CompareView({ refId, cmpId }: { refId: number; cmpId: number }) {
+  const palette = usePalette();
   const [, setParams] = useSearchParams();
   const { data, error, loading } = useApi<Comparison>(`/compare?ref=${refId}&cmp=${cmpId}`);
   const map = useApi<TrackMap>(data ? `/tracks/${data.track}/map` : null);
@@ -193,7 +197,7 @@ function CompareView({ refId, cmpId }: { refId: number; cmpId: number }) {
       maxGear: Math.max(...r.gear, ...c.gear),
       steerMax: Math.max(20, ...r.steering_pct.map(Math.abs), ...c.steering_pct.map(Math.abs)),
     };
-  }, [data]);
+  }, [data, palette]);
 
   if (error) return <ErrorBlock message={error} />;
   if (!data || !series) return <LoadingBlock height={520} />;

@@ -1,13 +1,14 @@
-import { ActionIcon, Button, Checkbox, Menu, Modal, Tooltip } from "@mantine/core";
+import { Button, Checkbox, Tooltip } from "@mantine/core";
 import { AnimatePresence, motion } from "framer-motion";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { apiFetch, type Lap, type SessionDetail } from "../api";
+import { deleteSession, setSessionHidden, type Lap, type SessionDetail } from "../api";
 import { LapTimesChart } from "../components/LapTimesChart";
+import { DeleteSessionModal, SessionMenu } from "../components/SessionActions";
 import { Chip, ErrorBlock, LoadingBlock, PageTitle, SectionTitle, StatTile } from "../components/ui";
 import { dateTime, lapTime, sectorTime, sessionType, signed, wetness } from "../lib/format";
 import { useApi } from "../lib/useApi";
-import { palette } from "../theme";
+import { usePalette } from "../lib/mode";
 
 const GAP_SCALE_S = 3;
 
@@ -20,6 +21,7 @@ function lapStatus(lap: Lap): { label: string; tone: "default" | "warn" } | null
 }
 
 function LapTable({ laps, bestMs, selected, onToggle }: { laps: Lap[]; bestMs: number | null; selected: number[]; onToggle: (id: number) => void }) {
+  const palette = usePalette();
   const navigate = useNavigate();
   const best = laps.find((l) => l.lap_time_ms === bestMs && l.in_grid);
   const clean = laps.filter((l) => l.valid && !l.is_out_lap && !l.is_in_lap);
@@ -146,9 +148,10 @@ function QualityPanel({ detail }: { detail: SessionDetail }) {
 }
 
 export default function SessionPage() {
+  const palette = usePalette();
   const { id } = useParams();
   const navigate = useNavigate();
-  const { data, error } = useApi<SessionDetail>(`/sessions/${id}`);
+  const { data, error, reload } = useApi<SessionDetail>(`/sessions/${id}`);
   const [selected, setSelected] = useState<number[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -165,8 +168,13 @@ export default function SessionPage() {
   const [refLap, cmpLap] = [...selected].map((x) => byId.get(x)!).sort((a, b) => (a.lap_time_ms ?? 0) - (b.lap_time_ms ?? 0));
 
   const remove = async () => {
-    await apiFetch(`/sessions/${session.id}`, { method: "DELETE" });
+    await deleteSession(session.id);
     navigate("/");
+  };
+
+  const toggleHidden = async () => {
+    await setSessionHidden(session.id, !session.hidden);
+    reload();
   };
 
   return (
@@ -185,19 +193,10 @@ export default function SessionPage() {
           {session.air_temp != null && <Chip>Air {Math.round(session.air_temp)}°C</Chip>}
           {session.track_temp != null && <Chip>Track {Math.round(session.track_temp)}°C</Chip>}
           {session.wetness != null && <Chip>{wetness(session.wetness)}</Chip>}
+          {session.driver && <Chip>{session.driver}</Chip>}
           {session.source !== "live" && <Chip tone="signal">Rebuilt from legacy capture</Chip>}
-          <Menu position="bottom-end" withinPortal>
-            <Menu.Target>
-              <ActionIcon variant="subtle" color="gray" aria-label="Session actions">
-                <span className="text-lg leading-none text-bone-dim">⋯</span>
-              </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown>
-              <Menu.Item color="red" onClick={() => setConfirmDelete(true)}>
-                Delete session
-              </Menu.Item>
-            </Menu.Dropdown>
-          </Menu>
+          {session.hidden ? <Chip tone="warn">Hidden from analysis</Chip> : null}
+          <SessionMenu hidden={!!session.hidden} onToggleHidden={toggleHidden} onDelete={() => setConfirmDelete(true)} />
         </div>
       </PageTitle>
 
@@ -280,19 +279,7 @@ export default function SessionPage() {
         )}
       </AnimatePresence>
 
-      <Modal opened={confirmDelete} onClose={() => setConfirmDelete(false)} title="Delete session" centered>
-        <p className="text-[14px] text-bone-dim">
-          This removes the session, its {laps.length} laps and the raw telemetry file from disk. It cannot be undone.
-        </p>
-        <div className="mt-6 flex justify-end gap-2">
-          <Button variant="default" onClick={() => setConfirmDelete(false)}>
-            Cancel
-          </Button>
-          <Button color="red" onClick={remove}>
-            Delete
-          </Button>
-        </div>
-      </Modal>
+      <DeleteSessionModal opened={confirmDelete} lapCount={laps.length} onClose={() => setConfirmDelete(false)} onConfirm={remove} />
     </>
   );
 }

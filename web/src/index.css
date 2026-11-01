@@ -29,6 +29,12 @@
 @layer base {
   :root {
     color-scheme: dark;
+    --grain-dot: rgb(255 255 255 / 0.035);
+  }
+
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --grain-dot: rgb(22 26 35 / 0.06);
   }
 
   html,
@@ -68,7 +74,7 @@
 
   .grain {
     background-image:
-      radial-gradient(circle at 1px 1px, rgb(255 255 255 / 0.035) 1px, transparent 0);
+      radial-gradient(circle at 1px 1px, var(--grain-dot) 1px, transparent 0);
     background-size: 3px 3px;
   }
 }

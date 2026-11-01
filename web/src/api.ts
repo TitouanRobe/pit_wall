@@ -3,6 +3,8 @@ export type SessionListItem = {
   started_at: string;
   session_type: string | null;
   source: string;
+  driver: string | null;
+  hidden: boolean;
   track_temp: number | null;
   air_temp: number | null;
   wetness: number | null;
@@ -38,6 +40,7 @@ export type Lap = {
   class: string | null;
   started_at: string;
   session_type: string | null;
+  driver: string | null;
 };
 
 export type QualityReport = {
@@ -62,6 +65,8 @@ export type SessionDetail = {
     wetness: number | null;
     source: string;
     notes: string | null;
+    driver: string | null;
+    hidden: number;
     sample_hz: number;
     track: string;
     track_name: string;
@@ -187,3 +192,12 @@ export type Progression = {
     best_ms: number | null;
   };
 };
+
+export const setSessionHidden = (id: number, hidden: boolean) =>
+  apiFetch<void>(`/sessions/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ hidden }),
+  });
+
+export const deleteSession = (id: number) => apiFetch<void>(`/sessions/${id}`, { method: "DELETE" });
