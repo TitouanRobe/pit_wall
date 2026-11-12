@@ -10,7 +10,7 @@ export function ThemeToggle() {
       onClick={toggle}
       aria-label={`Switch to ${next} mode`}
       title={`Switch to ${next} mode`}
-      className="ml-auto flex h-9 w-9 items-center justify-center rounded-md border border-line text-bone-dim transition-colors hover:border-line-strong hover:text-bone"
+      className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-line text-bone-dim transition-colors hover:border-line-strong hover:text-bone"
     >
       <AnimatePresence mode="wait" initial={false}>
         <motion.svg

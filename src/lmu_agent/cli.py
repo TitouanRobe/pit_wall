@@ -55,6 +55,17 @@ def _cmd_info(args: argparse.Namespace) -> None:
               f"{'ok' if not warnings else f'{warnings} warn'}")
 
 
+def _cmd_benchmarks_import(args: argparse.Namespace) -> None:
+    from . import benchmarks, db
+    try:
+        rows = benchmarks.read_csv(Path(args.file))
+    except (OSError, benchmarks.BenchmarkImportError) as exc:
+        raise SystemExit(f"Import failed: {exc}") from exc
+    with db.connection() as conn:
+        added, updated = benchmarks.import_rows(conn, rows)
+    print(f"Imported {len(rows)} circuits: {added} added, {updated} updated.")
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="lmu", description="Le Mans Ultimate telemetry recorder and analysis.")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -79,6 +90,11 @@ def main(argv: list[str] | None = None) -> None:
     rebuild.set_defaults(func=_cmd_rebuild)
     sub.add_parser("recover", help="Save sessions interrupted by a crash.").set_defaults(func=_cmd_recover)
     sub.add_parser("info", help="List recorded sessions.").set_defaults(func=_cmd_info)
+
+    bench = sub.add_parser("benchmarks", help="Manage the pace reference times.").add_subparsers(dest="action", required=True)
+    bench_import = bench.add_parser("import", help="Add or update reference times from a CSV file.")
+    bench_import.add_argument("file", help="CSV with car_class, track, game_track, patch, hotlap_avg, alien, fastest_car, fastest")
+    bench_import.set_defaults(func=_cmd_benchmarks_import)
 
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(message)s", datefmt="%H:%M:%S")

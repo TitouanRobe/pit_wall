@@ -201,3 +201,43 @@ export const setSessionHidden = (id: number, hidden: boolean) =>
   });
 
 export const deleteSession = (id: number) => apiFetch<void>(`/sessions/${id}`, { method: "DELETE" });
+
+export type TierKey = "alien" | "competitive" | "good" | "midpack" | "tail" | "offline" | "outside";
+
+export type Tier = { key: TierKey; label: string; max_pct: number | null };
+
+export type PaceReference = {
+  id: number;
+  car_class: string;
+  track: string;
+  game_track: string | null;
+  patch: string;
+  hotlap_avg_ms: number;
+  alien_ms: number;
+  fastest_car: string | null;
+  fastest_ms: number | null;
+};
+
+export type Placement = { time_ms: number | null; pct: number | null; tier: TierKey | null };
+
+export type BenchmarkSession = {
+  session_id: number;
+  started_at: string;
+  session_type: string | null;
+  car_name: string;
+  laps: number;
+  best: Placement;
+  pace: Placement;
+};
+
+export type DrivenTrack = {
+  track: string;
+  track_name: string;
+  car_class: string;
+  reference_id: number | null;
+  best: Placement;
+  pace: Placement;
+  sessions: BenchmarkSession[];
+};
+
+export type Benchmarks = { tiers: Tier[]; references: PaceReference[]; driven: DrivenTrack[] };

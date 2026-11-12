@@ -244,3 +244,82 @@ def test_schema_migration_adds_columns_to_an_existing_database(tmp_path):
         row = conn.execute("SELECT driver, hidden FROM session").fetchone()
         assert row["driver"] is None and row["hidden"] == 0
         conn.execute("SELECT driver, hidden FROM v_lap").fetchall()
+
+
+def test_benchmarks_are_seeded_once_and_keep_manual_edits():
+    from lmu_agent import benchmarks
+
+    with db.connection() as conn:
+        conn.execute("UPDATE pace_reference SET game_track = 'Renamed' WHERE track = 'Barcelona'")
+    with db.connection() as conn:
+        benchmarks.seed(conn)
+        rows = conn.execute("SELECT track, game_track FROM pace_reference WHERE car_class = 'GT3'").fetchall()
+        conn.execute("UPDATE pace_reference SET game_track = NULL WHERE track = 'Barcelona'")
+    assert len(rows) == len(benchmarks.read_csv(benchmarks.BUNDLED_REFERENCES))
+    assert dict(rows)["Barcelona"] == "Renamed"
+
+
+def test_benchmarks_place_laps_against_the_closest_layout(two_weeks):
+    client = TestClient(app)
+    best = min(s["best_ms"] for s in client.get("/api/sessions").json() if s["track"] == "progress_ring")
+    with db.connection() as conn:
+        conn.executemany(
+            "INSERT INTO pace_reference (car_class, track, game_track, patch, hotlap_avg_ms, alien_ms) VALUES ('GT3', ?, 'Progress Ring', 'test', ?, ?)",
+            [("Ring (long)", best * 2, best * 2), ("Ring", best, round(best / 1.02))],
+        )
+    try:
+        driven = {d["track"]: d for d in client.get("/api/benchmarks").json()["driven"]}["progress_ring"]
+        references = {r["id"]: r for r in client.get("/api/benchmarks").json()["references"]}
+        assert references[driven["reference_id"]]["track"] == "Ring"
+        assert driven["best"]["pct"] == pytest.approx(102.0, abs=0.01)
+        assert driven["best"]["tier"] == "good"
+        assert len(driven["sessions"]) == 2
+        assert driven["pace"]["time_ms"] >= driven["best"]["time_ms"]
+    finally:
+        with db.connection() as conn:
+            conn.execute("DELETE FROM pace_reference WHERE patch = 'test'")
+
+
+def test_tiers_use_the_column_as_the_time_to_beat():
+    from lmu_agent.benchmarks import tier_for
+
+    assert [tier_for(p) for p in (99.2, 100.0, 100.4, 102.9, 104.0, 105.5, 106.8, 112.0)] == [
+        "alien", "alien", "competitive", "good", "midpack", "tail", "offline", "outside"
+    ]
+
+
+def test_benchmark_csv_import_upserts_and_keeps_game_track(tmp_path):
+    from lmu_agent import benchmarks
+    from lmu_agent.cli import main
+
+    file = tmp_path / "ref.csv"
+    file.write_text(
+        "car_class,track,game_track,patch,hotlap_avg,alien,fastest_car,fastest\n"
+        "GT3,Imola,,1.5,1:41.00,1:41.50,Test Car,1:41.40\n"
+        "LMP2,Spa,Spa-Francorchamps,1.5,2:00.00,2:01.25,,\n"
+    )
+    main(["benchmarks", "import", str(file)])
+    with db.connection() as conn:
+        imola = conn.execute("SELECT * FROM pace_reference WHERE car_class = 'GT3' AND track = 'Imola'").fetchone()
+        spa = conn.execute("SELECT * FROM pace_reference WHERE car_class = 'LMP2'").fetchone()
+        conn.execute("DELETE FROM pace_reference WHERE car_class = 'LMP2'")
+    assert imola["alien_ms"] == 101500 and imola["patch"] == "1.5"
+    assert imola["game_track"] == "Autodromo Enzo e Dino Ferrari"
+    assert spa["alien_ms"] == 121250 and spa["fastest_ms"] is None
+
+
+@pytest.mark.parametrize(
+    "body, message",
+    [
+        ("GT3,Imola,,1.5,1:41.00,101.5,,\n", "line 2: '101.5' is not a lap time"),
+        ("GT3,Imola,,1.5,,1:41.50,,\n", "line 2: missing hotlap_avg"),
+        ("GT3,Imola,,1.5,1:41.00,1:41.50,,\nGT3,imola,,1.5,1:41.00,1:41.50,,\n", "line 3: duplicate"),
+    ],
+)
+def test_benchmark_csv_rejects_bad_rows(tmp_path, body, message):
+    from lmu_agent import benchmarks
+
+    file = tmp_path / "bad.csv"
+    file.write_text("car_class,track,game_track,patch,hotlap_avg,alien,fastest_car,fastest\n" + body)
+    with pytest.raises(benchmarks.BenchmarkImportError, match=message):
+        benchmarks.read_csv(file)

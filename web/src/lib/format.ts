@@ -1,8 +1,9 @@
-export function lapTime(ms: number | null | undefined): string {
-  if (ms == null) return "-:--.---";
-  const minutes = Math.floor(ms / 60000);
-  const seconds = (ms % 60000) / 1000;
-  return `${minutes}:${seconds.toFixed(3).padStart(6, "0")}`;
+export function lapTime(ms: number | null | undefined, digits = 3): string {
+  if (ms == null) return `-:--.${"-".repeat(digits)}`;
+  const rounded = Math.round(ms / 10 ** (3 - digits)) * 10 ** (3 - digits);
+  const minutes = Math.floor(rounded / 60000);
+  const seconds = (rounded % 60000) / 1000;
+  return `${minutes}:${seconds.toFixed(digits).padStart(digits + 3, "0")}`;
 }
 
 export function sectorTime(ms: number | null | undefined): string {

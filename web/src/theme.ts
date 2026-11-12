@@ -1,5 +1,6 @@
 import { createTheme, type CSSVariablesResolver, type MantineColorsTuple } from "@mantine/core";
 import type { PartialTheme } from "@nivo/theming";
+import type { TierKey } from "./api";
 
 export type Mode = "dark" | "light";
 
@@ -48,6 +49,27 @@ export const palettes: Record<Mode, Palette> = { dark, light };
 export const heat: Record<Mode, { stops: string[]; labelOnHot: string }> = {
   dark: { stops: ["#131c33", "#3b3a2e", "#6b5d27", "#a8862a", "#f2c230"], labelOnHot: dark.ink950 },
   light: { stops: ["#ebe8df", "#e8dcb0", "#e2c76d", "#d6a820", "#b88700"], labelOnHot: light.bone },
+};
+
+export const tierColors: Record<Mode, Record<TierKey, string>> = {
+  dark: {
+    alien: dark.best,
+    competitive: dark.gain,
+    good: "#86b545",
+    midpack: dark.signal,
+    tail: dark.cmp,
+    offline: dark.loss,
+    outside: dark.mute,
+  },
+  light: {
+    alien: light.best,
+    competitive: light.gain,
+    good: "#5b8a22",
+    midpack: light.signal,
+    tail: light.cmp,
+    offline: light.loss,
+    outside: light.mute,
+  },
 };
 
 const cssName = (key: string) => `--color-${key.replace(/([a-z])([A-Z0-9])/g, "$1-$2").toLowerCase()}`;
@@ -105,6 +127,12 @@ export const mantineTheme = createTheme({
       styles: {
         dropdown: { background: v("ink-850"), borderColor: v("line-strong") },
         item: { color: v("bone"), fontSize: 14 },
+      },
+    },
+    TextInput: {
+      defaultProps: { radius: "sm" },
+      styles: {
+        input: { background: v("ink-850"), borderColor: v("line"), color: v("bone"), fontFamily: '"Barlow", sans-serif' },
       },
     },
     Checkbox: {

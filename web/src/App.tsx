@@ -9,6 +9,7 @@ import SessionsPage from "./pages/SessionsPage";
 const SessionPage = lazy(() => import("./pages/SessionPage"));
 const ComparePage = lazy(() => import("./pages/ComparePage"));
 const ProgressPage = lazy(() => import("./pages/ProgressPage"));
+const BenchmarksPage = lazy(() => import("./pages/BenchmarksPage"));
 
 function NavItem({ to, children }: { to: string; children: string }) {
   return (
@@ -46,10 +47,11 @@ export default function App() {
               <span className="label block !text-[10px] !tracking-[0.22em]">LMU Telemetry</span>
             </span>
           </NavLink>
-          <nav className="flex gap-5 sm:gap-7">
+          <nav className="flex min-w-0 gap-4 overflow-x-auto whitespace-nowrap sm:gap-7">
             <NavItem to="/">Sessions</NavItem>
             <NavItem to="/compare">Compare</NavItem>
             <NavItem to="/progress">Progress</NavItem>
+            <NavItem to="/benchmarks">Benchmarks</NavItem>
           </nav>
           <ThemeToggle />
         </div>
@@ -69,6 +71,7 @@ export default function App() {
               <Route path="/sessions/:id" element={<SessionPage />} />
               <Route path="/compare" element={<ComparePage />} />
               <Route path="/progress" element={<ProgressPage />} />
+              <Route path="/benchmarks" element={<BenchmarksPage />} />
             </Routes>
           </Suspense>
         </motion.main>

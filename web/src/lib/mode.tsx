@@ -1,6 +1,6 @@
 import { MantineProvider } from "@mantine/core";
 import { createContext, type ReactNode, useCallback, useContext, useLayoutEffect, useMemo, useState } from "react";
-import { applyMode, cssVariablesResolver, heat, type Mode, mantineTheme, nivoThemeFor, type Palette, palettes } from "../theme";
+import { applyMode, cssVariablesResolver, heat, type Mode, mantineTheme, nivoThemeFor, type Palette, palettes, tierColors } from "../theme";
 
 const STORAGE_KEY = "pitwall-theme";
 
@@ -53,4 +53,8 @@ export function useNivoTheme() {
 
 export function useHeat() {
   return heat[useMode().mode];
+}
+
+export function useTierColors() {
+  return tierColors[useMode().mode];
 }

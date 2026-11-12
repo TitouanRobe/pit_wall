@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import __version__, analysis, db
+from . import __version__, analysis, benchmarks, db
 from .config import WEB_DIST
 from .ingest import delete_session, set_hidden
 
@@ -96,6 +96,11 @@ def track_laps(slug: str, conn: Conn) -> list[dict]:
         "SELECT * FROM v_lap WHERE track = ? AND hidden = 0 AND in_grid = 1 ORDER BY valid DESC, lap_time_ms", (slug,)
     ).fetchall()
     return [analysis.lap_summary(r) for r in rows]
+
+
+@app.get("/api/benchmarks")
+def get_benchmarks(conn: Conn) -> dict:
+    return benchmarks.overview(conn)
 
 
 @app.get("/api/compare")

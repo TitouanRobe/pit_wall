@@ -5,9 +5,10 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
+from . import benchmarks
 from .config import SQLITE_PATH
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS corner (
@@ -74,6 +75,19 @@ CREATE TABLE IF NOT EXISTS lap (
     UNIQUE (session_id, lap_number)
 );
 
+CREATE TABLE IF NOT EXISTS pace_reference (
+    id             INTEGER PRIMARY KEY,
+    car_class      TEXT NOT NULL,
+    track          TEXT NOT NULL,
+    game_track     TEXT,
+    patch          TEXT NOT NULL,
+    hotlap_avg_ms  INTEGER NOT NULL,
+    alien_ms       INTEGER NOT NULL,
+    fastest_car    TEXT,
+    fastest_ms     INTEGER,
+    UNIQUE (car_class, track)
+);
+
 CREATE INDEX IF NOT EXISTS idx_lap_time ON lap(lap_time_ms) WHERE valid = 1;
 
 DROP VIEW IF EXISTS v_lap;
@@ -117,6 +131,7 @@ def init_db(db_path: Path = SQLITE_PATH) -> None:
     try:
         _migrate(conn)
         conn.executescript(_SCHEMA_SQL)
+        benchmarks.seed(conn)
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.commit()
     finally:

@@ -5,6 +5,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import type { Comparison, CornerComparison, Corner, Lap, TrackMap } from "../api";
 import { TrackChooser } from "../components/TrackChooser";
 import { DeltaMap } from "../components/TrackMap";
+import { cornerDirections, type Direction } from "../lib/corners";
+import { TrajectoryMap } from "../components/TrajectoryMap";
 import { TraceChart, type ChartSeries } from "../components/TraceChart";
 import { ErrorBlock, LoadingBlock, PageTitle, SectionTitle, SeriesSwatch } from "../components/ui";
 import { createStore } from "../lib/cursor";
@@ -165,6 +167,82 @@ function CornerTable({ corners, onZoom }: { corners: CornerComparison[]; onZoom:
   );
 }
 
+const FILTERS: { id: "all" | Direction; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "left", label: "Left" },
+  { id: "right", label: "Right" },
+];
+
+function CornerPicker({
+  corners,
+  directions,
+  active,
+  full,
+  onPick,
+  onFull,
+}: {
+  corners: CornerComparison[];
+  directions: Direction[];
+  active: number | null;
+  full: boolean;
+  onPick: (c: Corner) => void;
+  onFull: () => void;
+}) {
+  const palette = usePalette();
+  const [filter, setFilter] = useState<"all" | Direction>("all");
+  const rows = corners.filter((c) => filter === "all" || directions[c.index] === filter);
+  return (
+    <div className="flex min-h-0 flex-col lg:max-h-[78vh]">
+      <div className="mb-2 flex gap-1" role="tablist" aria-label="Corner direction">
+        {FILTERS.map((f) => (
+          <button
+            key={f.id}
+            role="tab"
+            aria-selected={filter === f.id}
+            onClick={() => setFilter(f.id)}
+            className={`flex-1 rounded border px-2 py-1 font-display text-[12px] font-semibold uppercase tracking-[0.1em] transition-colors ${
+              filter === f.id ? "border-signal text-signal" : "border-line text-bone-dim hover:text-bone"
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+      <button
+        onClick={onFull}
+        className={`mb-1 rounded px-3 py-2 text-left font-display text-[13px] font-semibold uppercase tracking-[0.08em] transition-colors hover:bg-ink-800 ${
+          full ? "text-signal" : "text-bone-dim"
+        }`}
+      >
+        Full circuit
+      </button>
+      <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto pr-1">
+        {rows.map((c) => (
+          <button
+            key={c.index}
+            onClick={() => onPick(c)}
+            aria-pressed={active === c.index}
+            className={`flex w-full items-center justify-between rounded px-3 py-2 text-left transition-colors hover:bg-ink-800 ${
+              active === c.index ? "bg-ink-800 shadow-[inset_2px_0_0_var(--color-signal)]" : ""
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <span className="w-4 text-center text-bone-dim" aria-label={`${directions[c.index]} turn`}>
+                {directions[c.index] === "left" ? "↰" : "↱"}
+              </span>
+              <span className="font-display text-[15px] font-semibold uppercase tracking-[0.06em]">{c.name}</span>
+            </span>
+            <span className="num text-[13px]" style={{ color: c.delta_s > 0 ? palette.loss : palette.gain }}>
+              {signed(c.delta_s)}
+            </span>
+          </button>
+        ))}
+        {!rows.length && <p className="px-3 py-2 text-[13px] text-mute">No corners in this direction.</p>}
+      </div>
+    </div>
+  );
+}
+
 function CompareView({ refId, cmpId }: { refId: number; cmpId: number }) {
   const palette = usePalette();
   const [, setParams] = useSearchParams();
@@ -208,6 +286,11 @@ function CompareView({ refId, cmpId }: { refId: number; cmpId: number }) {
   const zoomed = domain[0] > 0 || domain[1] < length;
   const select = (role: "ref" | "cmp") => (v: string) =>
     setParams(role === "ref" ? { ref: v, cmp: String(cmpId) } : { ref: String(refId), cmp: v });
+  const directions = cornerDirections(data.corners, data.ref.trace);
+  const activeCorner =
+    data.corners.find(
+      (c) => domain[0] === Math.max(0, c.s_start - CORNER_ZOOM_PAD_M) && domain[1] === Math.min(length, c.s_end + CORNER_ZOOM_PAD_M),
+    )?.index ?? null;
   const common = { s, domain, cursor, corners: data.corners, onZoom: setDomain, onReset: reset };
 
   return (
@@ -298,6 +381,30 @@ function CompareView({ refId, cmpId }: { refId: number; cmpId: number }) {
             format={(v) => v.toFixed(0)}
             showXAxis
           />
+        </div>
+      </div>
+
+      <div className="panel mt-4 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="label !text-bone-dim">Racing lines</span>
+          <div className="flex flex-wrap items-center gap-4 text-[12px] text-bone-dim">
+            <span className="hidden text-mute md:inline">Drag to pan. Scroll to zoom.</span>
+            <SeriesSwatch color={palette.ref} label={`Lap ${data.ref.lap_number}`} />
+            <SeriesSwatch color={palette.cmp} label={`Lap ${data.cmp.lap_number}`} />
+          </div>
+        </div>
+        <div className="mt-3 grid gap-3 lg:grid-cols-[230px_minmax(0,1fr)]">
+          <CornerPicker
+            corners={data.corners}
+            directions={directions}
+            active={activeCorner}
+            onPick={zoomTo}
+            onFull={reset}
+            full={!zoomed}
+          />
+          <div className="aspect-[2/1] max-h-[78vh] min-h-[320px] w-full overflow-hidden rounded-md bg-ink-900">
+            <TrajectoryMap refTrace={data.ref.trace} cmpTrace={data.cmp.trace} cursor={cursor} domain={domain} />
+          </div>
         </div>
       </div>
     </div>
